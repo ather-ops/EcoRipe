@@ -10,7 +10,7 @@ import jwt
 import sqlite3
 import hashlib
 import secrets
-from your_original_file import predict_crop_decision  # YOUR original function!
+from app import predict_crop_decision
 import pandas as pd
 
 # ============================================
@@ -443,4 +443,5 @@ if __name__ == "__main__":
     print("👥 User tracking is ENABLED")
     print("📊 Admin panel at /api/admin/stats?password=YOUR_SECRET_ADMIN_PASSWORD")
     print("\n" + "="*50)
+
     uvicorn.run(app, host="0.0.0.0", port=8000)
