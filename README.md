@@ -1,4 +1,4 @@
-# 🍎 EcoRipe - ML-Powered Apple Price Prediction Platform
+#  EcoRipe - ML-Powered Apple Price Prediction Platform
 
 ![EcoRipe Logo](https://via.placeholder.com/150x150/0B3B2C/FFFFFF?text=ER)
 
