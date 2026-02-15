@@ -1,0 +1,21 @@
+date,market,crop,arrival_qty,price_today,price_1d_ago,price_2d_ago,price_3d_ago,days_since_harvest,max_safe_days,storage_available,is_perishable,price_tomorrow
+2024-10-15,Srinagar,Kashmiri Apple,8500,110.5,108.2,105.8,104.3,5,180,1,1,112.8
+2024-10-16,Srinagar,Kashmiri Apple,9200,112.8,110.5,108.2,105.8,6,180,1,1,115.3
+2024-10-17,Srinagar,Kashmiri Apple,7800,115.3,112.8,110.5,108.2,7,180,1,1,113.7
+2024-10-18,Srinagar,Kashmiri Apple,10200,113.7,115.3,112.8,110.5,8,180,1,1,116.2
+2024-10-19,Srinagar,Kashmiri Apple,9500,116.2,113.7,115.3,112.8,9,180,1,1,135.5
+2024-10-20,Delhi,Kashmiri Apple,6800,135.5,133.2,130.8,128.5,12,180,1,1,138.8
+2024-10-21,Delhi,Kashmiri Apple,7200,138.8,135.5,133.2,130.8,13,180,1,1,142.3
+2024-10-22,Delhi,Kashmiri Apple,6500,142.3,138.8,135.5,133.2,14,180,1,1,145.7
+2024-10-23,Mumbai,Kashmiri Apple,5800,145.7,143.2,140.5,138.0,15,180,1,1,148.2
+2024-10-24,Mumbai,Kashmiri Apple,6200,148.2,145.7,143.2,140.5,16,180,1,1,150.5
+2024-10-25,Mumbai,Kashmiri Apple,5400,150.5,148.2,145.7,143.2,17,180,1,1,158.8
+2024-10-26,Chennai,Kashmiri Apple,4800,158.8,155.5,152.3,150.0,18,180,1,1,162.3
+2024-10-27,Chennai,Kashmiri Apple,5200,162.3,158.8,155.5,152.3,19,180,0,1,165.7
+2024-10-28,Chennai,Kashmiri Apple,4500,165.7,162.3,158.8,155.5,20,180,0,1,152.5
+2024-10-29,Kolkata,Kashmiri Apple,5500,152.5,149.8,147.2,144.5,21,180,1,1,155.8
+2024-10-30,Kolkata,Kashmiri Apple,5900,155.8,152.5,149.8,147.2,22,180,1,1,158.3
+2024-10-31,Kolkata,Kashmiri Apple,5100,158.3,155.8,152.5,149.8,23,180,1,1,118.5
+2024-11-01,Srinagar,Kashmiri Apple,8200,118.5,116.0,114.2,112.5,22,180,1,1,140.2
+2024-11-02,Delhi,Kashmiri Apple,7000,140.2,138.5,136.8,134.5,24,180,1,1,152.8
+2024-11-03,Mumbai,Kashmiri Apple,5600,152.8,150.3,148.5,146.2,26,180,1,1,

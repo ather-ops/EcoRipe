@@ -1,0 +1,1654 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>EcoRipe · Apple Variety Intelligence</title>
+    
+    <!-- PWA Manifest -->
+    <link rel="manifest" href="/manifest.json">
+    <meta name="theme-color" content="#0B3B2C">
+    <meta name="apple-mobile-web-app-capable" content="yes">
+    
+    <!-- Fonts & Libraries -->
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    
+    <style>
+        /* ========== ECORIPE · MULTI-VARIETY INTELLIGENCE ========== */
+        :root {
+            --primary: #0B3B2C;
+            --primary-light: #1A5A3C;
+            --accent: #3A7B4B;
+            --accent-glow: rgba(58, 123, 75, 0.3);
+            --success: #2A7A4B;
+            --warning: #B9770E;
+            --danger: #B33A3A;
+            --info: #2A6F7A;
+            
+            --glass-bg: rgba(255, 255, 255, 0.15);
+            --glass-border: rgba(255, 255, 255, 0.2);
+            --glass-shadow: 0 25px 50px -12px rgba(0, 0, 0, 0.25);
+            
+            --text-primary: #0A1C1A;
+            --text-secondary: #334233;
+            --text-muted: #647A64;
+            
+            --grid-color: rgba(58, 123, 75, 0.1);
+            --grid-size: 30px;
+            
+            --font-sans: 'Inter', sans-serif;
+            
+            --radius-sm: 8px;
+            --radius-md: 12px;
+            --radius-lg: 20px;
+            --radius-xl: 28px;
+            --radius-full: 100px;
+            
+            --ease: cubic-bezier(0.4, 0, 0.2, 1);
+            --ease-bounce: cubic-bezier(0.34, 1.56, 0.64, 1);
+            
+            /* Apple Variety Colors */
+            --gala: #E63E3E;
+            --fuji: #D94A2B;
+            --honeycrisp: #F4A460;
+            --granny-smith: #7CB342;
+            --red-delicious: #B22222;
+            --golden-delicious: #FDD835;
+            --pink-lady: #FFB6C1;
+            --mcintosh: #C41E3A;
+            --braeburn: #CD5C5C;
+            --empire: #8B0000;
+            --cortland: #DC143C;
+            --jonagold: #DAA520;
+        }
+
+        [data-theme="dark"] {
+            --primary: #D4EDDA;
+            --accent: #6C9E75;
+            --glass-bg: rgba(10, 28, 26, 0.6);
+            --glass-border: rgba(255, 255, 255, 0.08);
+            --text-primary: #F0F4F0;
+            --text-secondary: #CBD5CB;
+            --text-muted: #94A394;
+            --grid-color: rgba(108, 158, 117, 0.05);
+            background: #0A1C1A;
+        }
+
+        * {
+            margin: 0;
+            padding: 0;
+            box-sizing: border-box;
+        }
+
+        body {
+            font-family: var(--font-sans);
+            background: linear-gradient(135deg, #F8FCF9, #F0F6F2);
+            color: var(--text-primary);
+            transition: background 0.6s var(--ease), color 0.4s var(--ease);
+            min-height: 100vh;
+            overflow-x: hidden;
+        }
+
+        /* ========== ANIMATED BACKGROUND ========== */
+        .glass-orb {
+            position: fixed;
+            width: 500px;
+            height: 500px;
+            background: radial-gradient(circle, var(--accent-glow) 0%, transparent 70%);
+            border-radius: 50%;
+            filter: blur(100px);
+            animation: float 25s infinite;
+            z-index: 0;
+        }
+
+        .orb-1 { top: -150px; right: -150px; animation-delay: 0s; background: radial-gradient(circle, #E63E3E20, transparent); }
+        .orb-2 { bottom: -150px; left: -150px; animation-delay: -5s; background: radial-gradient(circle, #7CB34220, transparent); }
+        .orb-3 { top: 40%; left: 20%; animation-delay: -10s; width: 400px; height: 400px; background: radial-gradient(circle, #F4A46020, transparent); }
+        .orb-4 { top: 60%; right: 30%; animation-delay: -15s; width: 350px; height: 350px; background: radial-gradient(circle, #B2222220, transparent); }
+
+        @keyframes float {
+            0%, 100% { transform: translate(0, 0) scale(1); }
+            25% { transform: translate(80px, -60px) scale(1.1); }
+            50% { transform: translate(-50px, 40px) scale(0.9); }
+            75% { transform: translate(-70px, -40px) scale(1.05); }
+        }
+
+        .grid-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-image: 
+                linear-gradient(var(--grid-color) 1px, transparent 1px),
+                linear-gradient(90deg, var(--grid-color) 1px, transparent 1px);
+            background-size: var(--grid-size) var(--grid-size);
+            pointer-events: none;
+            z-index: 0;
+            animation: gridMove 40s linear infinite;
+        }
+
+        @keyframes gridMove {
+            0% { transform: translateY(0); }
+            100% { transform: translateY(40px); }
+        }
+
+        /* ========== GLASS CONTAINER ========== */
+        .glass-container {
+            max-width: 1800px;
+            margin: 0 auto;
+            padding: 20px 32px;
+            position: relative;
+            z-index: 2;
+        }
+
+        /* ========== ECORIPE LOGO WITH APPLE ========== */
+        .logo {
+            display: flex;
+            align-items: center;
+            gap: 16px;
+        }
+
+        .logo-icon {
+            position: relative;
+            width: 60px;
+            height: 60px;
+            background: linear-gradient(145deg, var(--accent), var(--primary-light));
+            border-radius: 18px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            box-shadow: 0 20px 35px -10px var(--accent-glow);
+            transform: rotate(-2deg);
+            transition: transform 0.3s var(--ease-bounce);
+        }
+
+        .logo-icon:hover {
+            transform: rotate(0deg) scale(1.1);
+        }
+
+        .apple-shape {
+            width: 36px;
+            height: 36px;
+            background: white;
+            border-radius: 36px 36px 36px 8px;
+            transform: rotate(45deg);
+            position: relative;
+            box-shadow: inset 0 -2px 5px rgba(0,0,0,0.05);
+        }
+
+        .apple-shape::before {
+            content: '';
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            background: white;
+            border-radius: 12px 12px 2px 12px;
+            top: -7px;
+            left: 7px;
+            transform: rotate(15deg);
+        }
+
+        .leaf {
+            position: absolute;
+            width: 18px;
+            height: 18px;
+            background: linear-gradient(135deg, #4CAF50, #2E7D32);
+            border-radius: 18px 18px 2px 18px;
+            top: -10px;
+            right: 4px;
+            transform: rotate(-15deg);
+            animation: leafFloat 3s infinite;
+            box-shadow: 0 4px 8px rgba(46, 125, 50, 0.3);
+        }
+
+        @keyframes leafFloat {
+            0%, 100% { transform: rotate(-15deg) scale(1); }
+            50% { transform: rotate(5deg) scale(1.1); }
+        }
+
+        .logo-text {
+            font-size: 2.2rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .badge {
+            padding: 6px 18px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            font-weight: 600;
+            color: var(--accent);
+        }
+
+        /* ========== GLASS NAVIGATION ========== */
+        .nav-glass {
+            position: sticky;
+            top: 20px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(20px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            padding: 18px 36px;
+            margin-bottom: 30px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .nav-links {
+            display: flex;
+            gap: 48px;
+        }
+
+        .nav-link {
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 0.95rem;
+            font-weight: 500;
+            transition: color 0.3s;
+            position: relative;
+        }
+
+        .nav-link::after {
+            content: '';
+            position: absolute;
+            bottom: -4px;
+            left: 0;
+            width: 0;
+            height: 2px;
+            background: var(--accent);
+            transition: width 0.3s;
+        }
+
+        .nav-link:hover {
+            color: var(--accent);
+        }
+
+        .nav-link:hover::after {
+            width: 100%;
+        }
+
+        /* ========== THEME TOGGLE ========== */
+        .theme-toggle {
+            width: 56px;
+            height: 30px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-full);
+            position: relative;
+            cursor: pointer;
+        }
+
+        .theme-toggle::before {
+            content: '☀️';
+            position: absolute;
+            width: 24px;
+            height: 24px;
+            background: white;
+            border-radius: 50%;
+            top: 2px;
+            left: 2px;
+            transition: transform 0.4s var(--ease-bounce);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 12px;
+        }
+
+        [data-theme="dark"] .theme-toggle::before {
+            content: '🌙';
+            transform: translateX(26px);
+            background: var(--accent);
+            color: white;
+        }
+
+        /* ========== HEADER ========== */
+        .header-glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            padding: 40px;
+            margin-bottom: 30px;
+        }
+
+        .header-title {
+            font-size: 3.2rem;
+            font-weight: 800;
+            letter-spacing: -0.03em;
+            margin-bottom: 16px;
+            background: linear-gradient(135deg, var(--primary), var(--accent));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .live-indicator {
+            display: inline-flex;
+            align-items: center;
+            gap: 12px;
+            padding: 8px 24px;
+            background: rgba(255,255,255,0.1);
+            backdrop-filter: blur(10px);
+            border-radius: var(--radius-full);
+            border: 1px solid var(--glass-border);
+        }
+
+        .pulse-dot {
+            width: 10px;
+            height: 10px;
+            background: var(--success);
+            border-radius: 50%;
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0%, 100% { box-shadow: 0 0 0 0 var(--success); }
+            50% { box-shadow: 0 0 0 15px rgba(42, 122, 75, 0.2); }
+        }
+
+        /* ========== APPLE VARIETY SELECTOR ========== */
+        .variety-selector {
+            display: flex;
+            gap: 12px;
+            overflow-x: auto;
+            padding: 10px 0 20px;
+            margin-bottom: 20px;
+            scrollbar-width: thin;
+        }
+
+        .variety-card {
+            min-width: 120px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(5px);
+            border: 2px solid transparent;
+            border-radius: var(--radius-lg);
+            padding: 16px 12px;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s var(--ease);
+            position: relative;
+        }
+
+        .variety-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent);
+        }
+
+        .variety-card.active {
+            border-color: var(--accent);
+            background: rgba(58, 123, 75, 0.15);
+        }
+
+        .variety-color {
+            width: 40px;
+            height: 40px;
+            border-radius: 40px 40px 40px 8px;
+            margin: 0 auto 12px;
+            transform: rotate(45deg);
+        }
+
+        .variety-name {
+            font-weight: 700;
+            font-size: 0.9rem;
+            margin-bottom: 4px;
+        }
+
+        .variety-price {
+            font-size: 0.8rem;
+            color: var(--text-muted);
+        }
+
+        /* ========== KPI GRID ========== */
+        .kpi-grid {
+            display: grid;
+            grid-template-columns: repeat(6, 1fr);
+            gap: 20px;
+            margin-bottom: 30px;
+        }
+
+        .kpi-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            padding: 24px 20px;
+            transition: all 0.3s;
+            position: relative;
+            overflow: hidden;
+        }
+
+        .kpi-card:hover {
+            transform: translateY(-5px);
+            border-color: var(--accent);
+            box-shadow: 0 20px 40px -15px var(--accent-glow);
+        }
+
+        .kpi-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            margin-bottom: 12px;
+        }
+
+        .kpi-value {
+            font-size: 1.8rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            line-height: 1;
+            margin-bottom: 8px;
+        }
+
+        /* ========== MAIN DASHBOARD ========== */
+        .dashboard-grid {
+            display: grid;
+            grid-template-columns: 1.5fr 1.2fr 1.2fr;
+            gap: 24px;
+            margin-bottom: 30px;
+        }
+
+        /* ========== CHART CARDS ========== */
+        .chart-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            padding: 24px;
+            transition: all 0.3s;
+        }
+
+        .chart-card:hover {
+            border-color: var(--accent);
+            box-shadow: 0 20px 40px -15px var(--accent-glow);
+        }
+
+        .chart-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 20px;
+        }
+
+        .chart-title {
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+        }
+
+        .chart-container {
+            height: 200px;
+            position: relative;
+        }
+
+        /* ========== VARIETY COMPARISON TABLE ========== */
+        .comparison-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin: 20px 0;
+        }
+
+        .comparison-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-lg);
+            padding: 16px;
+        }
+
+        .comparison-header {
+            display: flex;
+            align-items: center;
+            gap: 12px;
+            margin-bottom: 12px;
+        }
+
+        .comparison-dot {
+            width: 12px;
+            height: 12px;
+            border-radius: 12px 12px 12px 2px;
+            transform: rotate(45deg);
+        }
+
+        .comparison-value {
+            font-size: 1.4rem;
+            font-weight: 700;
+            margin: 8px 0;
+        }
+
+        /* ========== PREDICTION FORM ========== */
+        .form-glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            padding: 32px;
+            margin: 30px 0;
+        }
+
+        .form-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 20px;
+            margin: 24px 0;
+        }
+
+        .form-group {
+            display: flex;
+            flex-direction: column;
+            gap: 8px;
+        }
+
+        .form-label {
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            color: var(--text-muted);
+        }
+
+        .form-input {
+            padding: 14px 18px;
+            background: rgba(255,255,255,0.05);
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-md);
+            color: var(--text-primary);
+            font-size: 0.9rem;
+            transition: all 0.3s;
+        }
+
+        .form-input:focus {
+            outline: none;
+            border-color: var(--accent);
+            background: rgba(255,255,255,0.1);
+        }
+
+        /* ========== BUTTONS ========== */
+        .btn-glass {
+            padding: 14px 32px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-full);
+            color: var(--text-primary);
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.3s;
+            display: inline-flex;
+            align-items: center;
+            gap: 10px;
+            font-size: 0.9rem;
+        }
+
+        .btn-glass:hover {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+            transform: translateY(-2px);
+            box-shadow: 0 15px 30px -10px var(--accent);
+        }
+
+        .btn-primary {
+            background: var(--accent);
+            color: white;
+            border-color: var(--accent);
+        }
+
+        /* ========== RESULTS SECTION ========== */
+        .results-section {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 24px;
+            margin: 30px 0;
+            display: none;
+        }
+
+        .results-section.active {
+            display: grid;
+            animation: fadeIn 0.5s;
+        }
+
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .result-card {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            padding: 28px;
+        }
+
+        .result-value {
+            font-size: 3rem;
+            font-weight: 800;
+            color: var(--accent);
+            margin: 16px 0;
+        }
+
+        .decision-badge {
+            display: inline-block;
+            padding: 12px 28px;
+            border-radius: var(--radius-full);
+            font-weight: 700;
+            font-size: 1.2rem;
+            margin: 16px 0;
+        }
+
+        .decision-wait {
+            background: rgba(42, 122, 75, 0.2);
+            color: var(--success);
+            border: 1px solid var(--success);
+        }
+
+        .decision-sell {
+            background: rgba(179, 58, 58, 0.2);
+            color: var(--danger);
+            border: 1px solid var(--danger);
+        }
+
+        /* ========== TABLE ========== */
+        .table-glass {
+            background: var(--glass-bg);
+            backdrop-filter: blur(10px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-xl);
+            overflow: hidden;
+            margin: 30px 0;
+        }
+
+        .glass-table {
+            width: 100%;
+            border-collapse: collapse;
+        }
+
+        .glass-table th {
+            text-align: left;
+            padding: 18px 24px;
+            background: rgba(255,255,255,0.05);
+            font-size: 0.65rem;
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            color: var(--text-muted);
+            border-bottom: 1px solid var(--glass-border);
+        }
+
+        .glass-table td {
+            padding: 16px 24px;
+            border-bottom: 1px solid var(--glass-border);
+            color: var(--text-secondary);
+        }
+
+        .glass-table tr:hover td {
+            background: rgba(255,255,255,0.05);
+        }
+
+        /* ========== FEATURE CLOUD ========== */
+        .feature-cloud {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+            margin: 30px 0;
+            justify-content: center;
+        }
+
+        .feature-tag {
+            padding: 8px 22px;
+            background: var(--glass-bg);
+            backdrop-filter: blur(5px);
+            border: 1px solid var(--glass-border);
+            border-radius: var(--radius-full);
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            transition: all 0.3s;
+        }
+
+        .feature-tag:hover {
+            border-color: var(--accent);
+            color: var(--accent);
+            transform: translateY(-2px);
+        }
+
+        /* ========== RESPONSIVE ========== */
+        @media (max-width: 1400px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+            .kpi-grid {
+                grid-template-columns: repeat(3, 1fr);
+            }
+        }
+
+        @media (max-width: 1200px) {
+            .dashboard-grid {
+                grid-template-columns: 1fr;
+            }
+            .form-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .kpi-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+            .form-grid {
+                grid-template-columns: 1fr;
+            }
+            .results-section {
+                grid-template-columns: 1fr;
+            }
+            .nav-links {
+                display: none;
+            }
+        }
+    </style>
+</head>
+<body>
+    <!-- Animated Background -->
+    <div class="glass-orb orb-1"></div>
+    <div class="glass-orb orb-2"></div>
+    <div class="glass-orb orb-3"></div>
+    <div class="glass-orb orb-4"></div>
+    <div class="grid-overlay"></div>
+
+    <!-- Notification Center -->
+    <div class="notification-center" id="notificationCenter" style="position: fixed; top: 100px; right: 30px; width: 380px; z-index: 1000; display: flex; flex-direction: column; gap: 12px; pointer-events: none;"></div>
+
+    <div class="glass-container">
+        
+        <!-- Navigation -->
+        <nav class="nav-glass">
+            <div class="logo">
+                <div class="logo-icon">
+                    <div class="apple-shape"></div>
+                    <div class="leaf"></div>
+                </div>
+                <span class="logo-text">EcoRipe</span>
+                <span class="badge">12 Varieties</span>
+            </div>
+
+            <div class="nav-links">
+                <a href="#" class="nav-link">Dashboard</a>
+                <a href="#" class="nav-link">Varieties</a>
+                <a href="#" class="nav-link">Predict</a>
+                <a href="#" class="nav-link">Analytics</a>
+                <a href="#" class="nav-link">Compare</a>
+            </div>
+
+            <div class="nav-actions">
+                <div class="theme-toggle" id="themeToggle"></div>
+            </div>
+        </nav>
+
+        <!-- Header -->
+        <div class="header-glass">
+            <div style="display: flex; justify-content: space-between; align-items: center;">
+                <div>
+                    <h1 class="header-title">Apple Variety Intelligence</h1>
+                    <p style="color: var(--text-secondary); max-width: 700px;">
+                        ML-powered predictions for 12 apple varieties · Real-time analytics · Variety-specific harvest strategies
+                    </p>
+                </div>
+                <div class="live-indicator">
+                    <span class="pulse-dot"></span>
+                    <span style="color: var(--text-secondary);">Multi-Variety Active</span>
+                </div>
+            </div>
+        </div>
+
+        <!-- Apple Variety Selector - 12 Varieties -->
+        <div class="variety-selector" id="varietySelector">
+            <!-- Gala -->
+            <div class="variety-card active" data-variety="gala" data-color="#E63E3E">
+                <div class="variety-color" style="background: #E63E3E;"></div>
+                <div class="variety-name">Gala</div>
+                <div class="variety-price">₹120/kg</div>
+            </div>
+            <!-- Fuji -->
+            <div class="variety-card" data-variety="fuji" data-color="#D94A2B">
+                <div class="variety-color" style="background: #D94A2B;"></div>
+                <div class="variety-name">Fuji</div>
+                <div class="variety-price">₹135/kg</div>
+            </div>
+            <!-- Honeycrisp -->
+            <div class="variety-card" data-variety="honeycrisp" data-color="#F4A460">
+                <div class="variety-color" style="background: #F4A460;"></div>
+                <div class="variety-name">Honeycrisp</div>
+                <div class="variety-price">₹180/kg</div>
+            </div>
+            <!-- Granny Smith -->
+            <div class="variety-card" data-variety="granny-smith" data-color="#7CB342">
+                <div class="variety-color" style="background: #7CB342;"></div>
+                <div class="variety-name">Granny Smith</div>
+                <div class="variety-price">₹95/kg</div>
+            </div>
+            <!-- Red Delicious -->
+            <div class="variety-card" data-variety="red-delicious" data-color="#B22222">
+                <div class="variety-color" style="background: #B22222;"></div>
+                <div class="variety-name">Red Delicious</div>
+                <div class="variety-price">₹88/kg</div>
+            </div>
+            <!-- Golden Delicious -->
+            <div class="variety-card" data-variety="golden-delicious" data-color="#FDD835">
+                <div class="variety-color" style="background: #FDD835;"></div>
+                <div class="variety-name">Golden Delicious</div>
+                <div class="variety-price">₹92/kg</div>
+            </div>
+            <!-- Pink Lady -->
+            <div class="variety-card" data-variety="pink-lady" data-color="#FFB6C1">
+                <div class="variety-color" style="background: #FFB6C1;"></div>
+                <div class="variety-name">Pink Lady</div>
+                <div class="variety-price">₹165/kg</div>
+            </div>
+            <!-- McIntosh -->
+            <div class="variety-card" data-variety="mcintosh" data-color="#C41E3A">
+                <div class="variety-color" style="background: #C41E3A;"></div>
+                <div class="variety-name">McIntosh</div>
+                <div class="variety-price">₹78/kg</div>
+            </div>
+            <!-- Braeburn -->
+            <div class="variety-card" data-variety="braeburn" data-color="#CD5C5C">
+                <div class="variety-color" style="background: #CD5C5C;"></div>
+                <div class="variety-name">Braeburn</div>
+                <div class="variety-price">₹142/kg</div>
+            </div>
+            <!-- Empire -->
+            <div class="variety-card" data-variety="empire" data-color="#8B0000">
+                <div class="variety-color" style="background: #8B0000;"></div>
+                <div class="variety-name">Empire</div>
+                <div class="variety-price">₹85/kg</div>
+            </div>
+            <!-- Cortland -->
+            <div class="variety-card" data-variety="cortland" data-color="#DC143C">
+                <div class="variety-color" style="background: #DC143C;"></div>
+                <div class="variety-name">Cortland</div>
+                <div class="variety-price">₹82/kg</div>
+            </div>
+            <!-- Jonagold -->
+            <div class="variety-card" data-variety="jonagold" data-color="#DAA520">
+                <div class="variety-color" style="background: #DAA520;"></div>
+                <div class="variety-name">Jonagold</div>
+                <div class="variety-price">₹110/kg</div>
+            </div>
+        </div>
+
+        <!-- KPI Grid -->
+        <div class="kpi-grid" id="kpiGrid">
+            <div class="kpi-card">
+                <div class="kpi-label">Current Price</div>
+                <div class="kpi-value" id="currentPrice">₹120</div>
+                <div style="color: var(--success); font-size: 0.7rem;">↑ 2.3% weekly</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Predicted (7d)</div>
+                <div class="kpi-value" id="predictedPrice">₹126.50</div>
+                <div style="color: var(--success); font-size: 0.7rem;">↑ 5.4% gain</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Risk Ratio</div>
+                <div class="kpi-value" id="riskKPI">0.42</div>
+                <div style="color: var(--success); font-size: 0.7rem;">Low Risk</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Harvest Window</div>
+                <div class="kpi-value" id="harvestWindow">5.2d</div>
+                <div style="color: var(--warning); font-size: 0.7rem;">Optimal</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Storage Life</div>
+                <div class="kpi-value" id="storageLife">180d</div>
+                <div style="color: var(--success); font-size: 0.7rem;">Excellent</div>
+            </div>
+            <div class="kpi-card">
+                <div class="kpi-label">Demand Index</div>
+                <div class="kpi-value" id="demandIndex">92</div>
+                <div style="color: var(--success); font-size: 0.7rem;">High</div>
+            </div>
+        </div>
+
+        <!-- Main Dashboard -->
+        <div class="dashboard-grid">
+            <!-- Price Trends by Variety -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <span class="chart-title">Price Trends · 7 Day Forecast</span>
+                    <span class="badge" id="selectedVariety">Gala</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="trendChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Variety Comparison -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <span class="chart-title">Top 5 Varieties · Price Comparison</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="comparisonChart"></canvas>
+                </div>
+            </div>
+
+            <!-- Risk Distribution -->
+            <div class="chart-card">
+                <div class="chart-header">
+                    <span class="chart-title">Risk Distribution</span>
+                </div>
+                <div class="chart-container">
+                    <canvas id="riskChart"></canvas>
+                </div>
+            </div>
+        </div>
+
+        <!-- Variety Comparison Grid -->
+        <div class="comparison-grid" id="comparisonGrid">
+            <!-- Populated by JavaScript -->
+        </div>
+
+        <!-- Prediction Form -->
+        <div class="form-glass">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <div>
+                    <h3 style="font-size: 1.2rem; font-weight: 600;">Variety-Specific Prediction</h3>
+                    <p style="color: var(--text-muted); font-size: 0.8rem;">Parameters match backend schema</p>
+                </div>
+                <span class="badge">ML v2.0 · 12 Varieties</span>
+            </div>
+
+            <div class="form-grid">
+                <div class="form-group">
+                    <label class="form-label">Apple Variety</label>
+                    <select class="form-input" id="varietySelect">
+                        <option value="gala">Gala</option>
+                        <option value="fuji">Fuji</option>
+                        <option value="honeycrisp">Honeycrisp</option>
+                        <option value="granny-smith">Granny Smith</option>
+                        <option value="red-delicious">Red Delicious</option>
+                        <option value="golden-delicious">Golden Delicious</option>
+                        <option value="pink-lady">Pink Lady</option>
+                        <option value="mcintosh">McIntosh</option>
+                        <option value="braeburn">Braeburn</option>
+                        <option value="empire">Empire</option>
+                        <option value="cortland">Cortland</option>
+                        <option value="jonagold">Jonagold</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Market</label>
+                    <select class="form-input" id="market">
+                        <option value="Srinagar">Srinagar</option>
+                        <option value="Delhi">Delhi</option>
+                        <option value="Mumbai">Mumbai</option>
+                        <option value="Chennai">Chennai</option>
+                        <option value="Shimla">Shimla</option>
+                        <option value="Ooty">Ooty</option>
+                    </select>
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Arrival Qty (kg)</label>
+                    <input type="number" class="form-input" id="arrival_qty" value="8000">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Price Today (₹)</label>
+                    <input type="number" class="form-input" id="price_today" value="120" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Price 1d Ago (₹)</label>
+                    <input type="number" class="form-input" id="price_1d_ago" value="118" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Price 3d Ago (₹)</label>
+                    <input type="number" class="form-input" id="price_3d_ago" value="115" step="0.1">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Days Since Harvest</label>
+                    <input type="number" class="form-input" id="days_since_harvest" value="10">
+                </div>
+                <div class="form-group">
+                    <label class="form-label">Max Safe Days</label>
+                    <input type="number" class="form-input" id="max_safe_days" value="180">
+                </div>
+            </div>
+
+            <div style="display: flex; gap: 16px; justify-content: flex-end;">
+                <button class="btn-glass" id="resetBtn">Reset</button>
+                <button class="btn-glass btn-primary" id="predictBtn">
+                    <span>Predict for Variety</span>
+                    <span style="font-size: 1.2rem;">→</span>
+                </button>
+            </div>
+        </div>
+
+        <!-- Results Section -->
+        <div class="results-section" id="resultsSection">
+            <!-- Prediction Result -->
+            <div class="result-card">
+                <div class="chart-title" id="resultVariety">Gala Apple</div>
+                <div class="result-value" id="predictedPriceResult">₹126.50</div>
+                
+                <div class="decision-badge" id="decisionBadge">WAIT</div>
+                
+                <div style="margin: 20px 0; color: var(--text-secondary);" id="decisionReason">
+                    Price predicted to increase by ₹6.50 (↑ 5.4%)
+                </div>
+                
+                <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 16px;">
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.7rem;">Risk Ratio</div>
+                        <div style="font-weight: 700; font-size: 1.2rem;" id="resultRisk">0.42</div>
+                    </div>
+                    <div>
+                        <div style="color: var(--text-muted); font-size: 0.7rem;">Confidence</div>
+                        <div style="font-weight: 700; font-size: 1.2rem;" id="resultConfidence">95.7%</div>
+                    </div>
+                </div>
+            </div>
+
+            <!-- Variety-Specific Strategy -->
+            <div class="result-card">
+                <div class="chart-title">Recommended Strategy</div>
+                <div style="font-size: 1.4rem; font-weight: 700; margin: 16px 0;" id="strategyName">Extended Cold Storage</div>
+                
+                <div style="background: rgba(255,255,255,0.05); padding: 16px; border-radius: var(--radius-md); margin: 16px 0;">
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span>Expected Gain</span>
+                        <span style="color: var(--success); font-weight: 700;" id="expectedGain">+5.4%</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between; margin-bottom: 8px;">
+                        <span>Harvest Window</span>
+                        <span style="font-weight: 700;" id="harvestWindowResult">5 days</span>
+                    </div>
+                    <div style="display: flex; justify-content: space-between;">
+                        <span>Storage Temp</span>
+                        <span style="font-weight: 700;" id="storageTemp">2-4°C</span>
+                    </div>
+                </div>
+
+                <button class="btn-glass btn-primary" style="width: 100%;" id="applyStrategy">
+                    Apply Strategy
+                </button>
+            </div>
+        </div>
+
+        <!-- Market Data Table -->
+        <div class="table-glass">
+            <table class="glass-table">
+                <thead>
+                    <tr>
+                        <th>Variety</th>
+                        <th>Market</th>
+                        <th>Current</th>
+                        <th>Predicted</th>
+                        <th>Window</th>
+                        <th>Strategy</th>
+                        <th>Gain</th>
+                        <th>Risk</th>
+                    </tr>
+                </thead>
+                <tbody id="marketTable">
+                    <!-- Populated by JavaScript -->
+                </tbody>
+            </table>
+        </div>
+
+        <!-- Feature Cloud -->
+        <div class="feature-cloud">
+            <span class="feature-tag">12 Apple Varieties</span>
+            <span class="feature-tag">Gala · Fuji · Honeycrisp</span>
+            <span class="feature-tag">Granny Smith · Red Delicious</span>
+            <span class="feature-tag">Golden Delicious · Pink Lady</span>
+            <span class="feature-tag">McIntosh · Braeburn · Empire</span>
+            <span class="feature-tag">Cortland · Jonagold</span>
+            <span class="feature-tag">Variety Comparison</span>
+            <span class="feature-tag">Storage Optimization</span>
+        </div>
+    </div>
+
+    <!-- ========== AUTHENTICATION MODAL ========== -->
+    <div id="loginModal" style="display: none; position: fixed; top: 0; left: 0; right: 0; bottom: 0; background: rgba(0,0,0,0.5); backdrop-filter: blur(5px); z-index: 1000; align-items: center; justify-content: center;">
+        <div style="background: var(--glass-bg); backdrop-filter: blur(20px); border: 1px solid var(--glass-border); border-radius: var(--radius-xl); padding: 30px; width: 90%; max-width: 400px;">
+            <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 20px;">
+                <h2 style="color: var(--text-primary);">Welcome to EcoRipe</h2>
+                <button onclick="closeModal()" style="background: none; border: none; color: var(--text-muted); font-size: 24px; cursor: pointer;">×</button>
+            </div>
+            
+            <!-- Tabs -->
+            <div style="display: flex; gap: 20px; margin-bottom: 20px; border-bottom: 1px solid var(--glass-border);">
+                <button id="loginTabBtn" onclick="showLogin()" style="background: none; border: none; padding: 10px 0; color: var(--accent); border-bottom: 2px solid var(--accent); cursor: pointer;">Login</button>
+                <button id="registerTabBtn" onclick="showRegister()" style="background: none; border: none; padding: 10px 0; color: var(--text-muted); cursor: pointer;">Register</button>
+            </div>
+            
+            <!-- Login Form -->
+            <div id="loginForm">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.8rem;">Email</label>
+                    <input type="email" id="loginEmail" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: var(--radius-md); color: var(--text-primary);">
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.8rem;">Password</label>
+                    <input type="password" id="loginPassword" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: var(--radius-md); color: var(--text-primary);">
+                </div>
+                <button onclick="handleLogin()" style="width: 100%; padding: 12px; background: var(--accent); border: none; border-radius: var(--radius-md); color: white; font-weight: 600; cursor: pointer;">Login</button>
+            </div>
+            
+            <!-- Register Form -->
+            <div id="registerForm" style="display: none;">
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.8rem;">Email</label>
+                    <input type="email" id="regEmail" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: var(--radius-md); color: var(--text-primary);">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.8rem;">Password</label>
+                    <input type="password" id="regPassword" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: var(--radius-md); color: var(--text-primary);">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.8rem;">Full Name (Optional)</label>
+                    <input type="text" id="regName" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: var(--radius-md); color: var(--text-primary);">
+                </div>
+                <div style="margin-bottom: 15px;">
+                    <label style="display: block; margin-bottom: 5px; color: var(--text-muted); font-size: 0.8rem;">Location (Optional)</label>
+                    <input type="text" id="regLocation" style="width: 100%; padding: 12px; background: rgba(255,255,255,0.05); border: 1px solid var(--glass-border); border-radius: var(--radius-md); color: var(--text-primary);">
+                </div>
+                <div style="margin-bottom: 20px;">
+                    <label style="display: flex; align-items: center; gap: 10px; color: var(--text-muted);">
+                        <input type="checkbox" id="marketingConsent" checked>
+                        <span style="font-size: 0.9rem;">I want to receive email updates</span>
+                    </label>
+                </div>
+                <button onclick="handleRegister()" style="width: 100%; padding: 12px; background: var(--accent); border: none; border-radius: var(--radius-md); color: white; font-weight: 600; cursor: pointer;">Register</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- User Menu (shown when logged in) -->
+    <div id="userMenu" style="display: none; align-items: center; gap: 15px; position: fixed; top: 30px; right: 120px; z-index: 101;">
+        <span id="userEmail" style="color: var(--text-secondary);"></span>
+        <button onclick="logout()" style="background: none; border: 1px solid var(--glass-border); padding: 8px 16px; border-radius: var(--radius-full); color: var(--text-secondary); cursor: pointer;">Logout</button>
+    </div>
+
+    <script>
+        // ============================================
+        // ECORIPE · COMPLETE AUTHENTICATION SYSTEM
+        // ============================================
+
+        // ========== THEME MANAGEMENT ==========
+        const themeToggle = document.getElementById('themeToggle');
+        const body = document.body;
+
+        themeToggle.addEventListener('click', () => {
+            const current = body.getAttribute('data-theme');
+            body.setAttribute('data-theme', current === 'dark' ? 'light' : 'dark');
+            localStorage.setItem('ecor ripe-theme', current === 'dark' ? 'light' : 'dark');
+        });
+
+        const savedTheme = localStorage.getItem('ecor ripe-theme') || 'light';
+        body.setAttribute('data-theme', savedTheme);
+
+        // ========== NOTIFICATION SYSTEM ==========
+        function showNotification(message, type = 'info') {
+            const container = document.getElementById('notificationCenter');
+            const notification = document.createElement('div');
+            
+            const colors = {
+                success: '#2A7A4B',
+                warning: '#B9770E',
+                danger: '#B33A3A',
+                info: '#3A7B4B'
+            };
+            
+            notification.style.cssText = `
+                background: var(--glass-bg);
+                backdrop-filter: blur(20px);
+                border: 1px solid var(--glass-border);
+                border-left: 4px solid ${colors[type]};
+                border-radius: 12px;
+                padding: 16px 20px;
+                margin-bottom: 10px;
+                color: var(--text-primary);
+                animation: slideIn 0.3s;
+                pointer-events: auto;
+            `;
+            
+            notification.innerHTML = `
+                <div style="font-weight: 600; margin-bottom: 4px;">EcoRipe</div>
+                <div style="font-size: 0.85rem; color: var(--text-secondary);">${message}</div>
+                <div style="font-size: 0.7rem; color: var(--text-muted); margin-top: 8px;">${new Date().toLocaleTimeString()}</div>
+            `;
+            
+            container.appendChild(notification);
+            
+            setTimeout(() => notification.remove(), 5000);
+        }
+
+        // ========== AUTHENTICATION STATE ==========
+        let currentUser = null;
+
+        // Check if user is already logged in
+        function checkLoginStatus() {
+            const token = localStorage.getItem('token');
+            if (token) {
+                fetch('http://localhost:8000/api/verify-token', {
+                    headers: { 'Authorization': `Bearer ${token}` }
+                })
+                .then(res => res.json())
+                .then(data => {
+                    if (data.valid) {
+                        currentUser = { email: data.email };
+                        updateUIForLogin();
+                    } else {
+                        localStorage.removeItem('token');
+                    }
+                })
+                .catch(() => {});
+            }
+        }
+
+        // Update UI after login
+        function updateUIForLogin() {
+            const navActions = document.querySelector('.nav-actions');
+            const loginBtn = document.getElementById('showLoginBtn');
+            const userMenu = document.getElementById('userMenu');
+            
+            if (currentUser) {
+                document.getElementById('userEmail').textContent = currentUser.email;
+                userMenu.style.display = 'flex';
+                if (loginBtn) loginBtn.style.display = 'none';
+            } else {
+                userMenu.style.display = 'none';
+                if (loginBtn) loginBtn.style.display = 'block';
+            }
+        }
+
+        // ========== MODAL FUNCTIONS ==========
+        function showModal() {
+            document.getElementById('loginModal').style.display = 'flex';
+        }
+
+        function closeModal() {
+            document.getElementById('loginModal').style.display = 'none';
+        }
+
+        function showLogin() {
+            document.getElementById('loginForm').style.display = 'block';
+            document.getElementById('registerForm').style.display = 'none';
+            document.getElementById('loginTabBtn').style.color = 'var(--accent)';
+            document.getElementById('loginTabBtn').style.borderBottom = '2px solid var(--accent)';
+            document.getElementById('registerTabBtn').style.color = 'var(--text-muted)';
+            document.getElementById('registerTabBtn').style.borderBottom = 'none';
+        }
+
+        function showRegister() {
+            document.getElementById('loginForm').style.display = 'none';
+            document.getElementById('registerForm').style.display = 'block';
+            document.getElementById('registerTabBtn').style.color = 'var(--accent)';
+            document.getElementById('registerTabBtn').style.borderBottom = '2px solid var(--accent)';
+            document.getElementById('loginTabBtn').style.color = 'var(--text-muted)';
+            document.getElementById('loginTabBtn').style.borderBottom = 'none';
+        }
+
+        // ========== AUTH API CALLS ==========
+        async function handleLogin() {
+            const email = document.getElementById('loginEmail').value;
+            const password = document.getElementById('loginPassword').value;
+            
+            if (!email || !password) {
+                alert('Please fill all fields');
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/login', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ email, password })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    localStorage.setItem('token', data.access_token);
+                    currentUser = { email: data.email };
+                    updateUIForLogin();
+                    closeModal();
+                    showNotification('Login successful!', 'success');
+                } else {
+                    alert(data.detail || 'Login failed');
+                }
+            } catch (error) {
+                alert('Cannot connect to server. Make sure backend is running on port 8000');
+            }
+        }
+
+        async function handleRegister() {
+            const email = document.getElementById('regEmail').value;
+            const password = document.getElementById('regPassword').value;
+            const name = document.getElementById('regName').value;
+            const location = document.getElementById('regLocation').value;
+            const marketing = document.getElementById('marketingConsent').checked;
+            
+            if (!email || !password) {
+                alert('Email and password are required');
+                return;
+            }
+            
+            try {
+                const response = await fetch('http://localhost:8000/api/register', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({
+                        email,
+                        password,
+                        full_name: name,
+                        location,
+                        marketing_consent: marketing
+                    })
+                });
+                
+                const data = await response.json();
+                
+                if (response.ok) {
+                    localStorage.setItem('token', data.access_token);
+                    currentUser = { email: data.email };
+                    updateUIForLogin();
+                    closeModal();
+                    showNotification('Registration successful! Check your email for updates.', 'success');
+                } else {
+                    alert(data.detail || 'Registration failed');
+                }
+            } catch (error) {
+                alert('Cannot connect to server. Make sure backend is running on port 8000');
+            }
+        }
+
+        function logout() {
+            localStorage.removeItem('token');
+            currentUser = null;
+            updateUIForLogin();
+            showNotification('Logged out successfully', 'info');
+        }
+
+        // ========== ADD LOGIN BUTTON TO NAV ==========
+        document.addEventListener('DOMContentLoaded', function() {
+            const navActions = document.querySelector('.nav-actions');
+            const loginBtn = document.createElement('button');
+            loginBtn.id = 'showLoginBtn';
+            loginBtn.className = 'btn-glass';
+            loginBtn.innerHTML = 'Login / Register';
+            loginBtn.onclick = showModal;
+            navActions.appendChild(loginBtn);
+            
+            checkLoginStatus();
+        });
+
+        // ========== VARIETY DATA ==========
+        const varietyData = {
+            gala: { name: 'Gala', price: 120, color: '#E63E3E', storage: 150, demand: 92 },
+            fuji: { name: 'Fuji', price: 135, color: '#D94A2B', storage: 180, demand: 88 },
+            honeycrisp: { name: 'Honeycrisp', price: 180, color: '#F4A460', storage: 120, demand: 95 },
+            'granny-smith': { name: 'Granny Smith', price: 95, color: '#7CB342', storage: 200, demand: 85 },
+            'red-delicious': { name: 'Red Delicious', price: 88, color: '#B22222', storage: 160, demand: 82 },
+            'golden-delicious': { name: 'Golden Delicious', price: 92, color: '#FDD835', storage: 170, demand: 84 },
+            'pink-lady': { name: 'Pink Lady', price: 165, color: '#FFB6C1', storage: 140, demand: 90 },
+            mcintosh: { name: 'McIntosh', price: 78, color: '#C41E3A', storage: 130, demand: 80 },
+            braeburn: { name: 'Braeburn', price: 142, color: '#CD5C5C', storage: 160, demand: 87 },
+            empire: { name: 'Empire', price: 85, color: '#8B0000', storage: 150, demand: 83 },
+            cortland: { name: 'Cortland', price: 82, color: '#DC143C', storage: 140, demand: 81 },
+            jonagold: { name: 'Jonagold', price: 110, color: '#DAA520', storage: 155, demand: 86 }
+        };
+
+        // ========== CHART INITIALIZATION ==========
+        const trendCtx = document.getElementById('trendChart').getContext('2d');
+        const trendChart = new Chart(trendCtx, {
+            type: 'line',
+            data: {
+                labels: ['D-3', 'D-2', 'D-1', 'Today', 'D+1', 'D+2', 'D+3'],
+                datasets: [{
+                    data: [112, 115, 118, 120, 122.5, 124.2, 125.8],
+                    borderColor: '#E63E3E',
+                    backgroundColor: 'rgba(230, 62, 62, 0.1)',
+                    tension: 0.4,
+                    fill: true,
+                    pointBackgroundColor: '#E63E3E'
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        const comparisonCtx = document.getElementById('comparisonChart').getContext('2d');
+        const comparisonChart = new Chart(comparisonCtx, {
+            type: 'bar',
+            data: {
+                labels: ['Honeycrisp', 'Pink Lady', 'Braeburn', 'Fuji', 'Gala'],
+                datasets: [{
+                    data: [180, 165, 142, 135, 120],
+                    backgroundColor: ['#F4A460', '#FFB6C1', '#CD5C5C', '#D94A2B', '#E63E3E'],
+                    borderRadius: 4
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        const riskCtx = document.getElementById('riskChart').getContext('2d');
+        new Chart(riskCtx, {
+            type: 'doughnut',
+            data: {
+                labels: ['Low Risk', 'Medium Risk', 'High Risk'],
+                datasets: [{
+                    data: [58, 32, 10],
+                    backgroundColor: ['#2A7A4B', '#B9770E', '#B33A3A'],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                plugins: { legend: { position: 'bottom' } }
+            }
+        });
+
+        // ========== POPULATE COMPARISON GRID ==========
+        const comparisonGrid = document.getElementById('comparisonGrid');
+        const topVarieties = ['honeycrisp', 'pink-lady', 'braeburn', 'fuji', 'gala', 'jonagold'];
+        topVarieties.forEach(v => {
+            const data = varietyData[v];
+            const card = document.createElement('div');
+            card.className = 'comparison-card';
+            card.innerHTML = `
+                <div class="comparison-header">
+                    <div class="comparison-dot" style="background: ${data.color};"></div>
+                    <span style="font-weight: 600;">${data.name}</span>
+                </div>
+                <div class="comparison-value">₹${data.price}</div>
+                <div style="display: flex; justify-content: space-between; font-size: 0.7rem;">
+                    <span>Storage: ${data.storage}d</span>
+                    <span>Demand: ${data.demand}</span>
+                </div>
+            `;
+            comparisonGrid.appendChild(card);
+        });
+
+        // ========== VARIETY SELECTION ==========
+        const varietyCards = document.querySelectorAll('.variety-card');
+        varietyCards.forEach(card => {
+            card.addEventListener('click', function() {
+                varietyCards.forEach(c => c.classList.remove('active'));
+                this.classList.add('active');
+                
+                const variety = this.dataset.variety;
+                const data = varietyData[variety];
+                
+                document.getElementById('currentPrice').textContent = `₹${data.price}`;
+                document.getElementById('selectedVariety').textContent = data.name;
+                document.getElementById('varietySelect').value = variety;
+                
+                trendChart.data.datasets[0].borderColor = data.color;
+                trendChart.data.datasets[0].pointBackgroundColor = data.color;
+                trendChart.data.datasets[0].data = [
+                    data.price * 0.93,
+                    data.price * 0.96,
+                    data.price * 0.98,
+                    data.price,
+                    data.price * 1.02,
+                    data.price * 1.035,
+                    data.price * 1.048
+                ];
+                trendChart.update();
+                
+                showNotification(`Switched to ${data.name} variety`, 'info');
+            });
+        });
+
+        // ========== MARKET TABLE ==========
+        const markets = [
+            { variety: 'Gala', market: 'Srinagar', current: 120, predicted: 126.5, window: '5d', strategy: 'Storage', gain: '+5.4%', risk: 'Low' },
+            { variety: 'Fuji', market: 'Delhi', current: 135, predicted: 141.8, window: '4d', strategy: 'Hold', gain: '+5.0%', risk: 'Low' },
+            { variety: 'Honeycrisp', market: 'Mumbai', current: 180, predicted: 189.0, window: '6d', strategy: 'Storage', gain: '+5.0%', risk: 'Low' },
+            { variety: 'Granny Smith', market: 'Chennai', current: 95, predicted: 92.2, window: '2d', strategy: 'Sell', gain: '-2.9%', risk: 'Medium' },
+            { variety: 'Pink Lady', market: 'Bangalore', current: 165, predicted: 172.4, window: '5d', strategy: 'Storage', gain: '+4.5%', risk: 'Low' },
+            { variety: 'Red Delicious', market: 'Shimla', current: 88, predicted: 85.4, window: '1d', strategy: 'Sell', gain: '-3.0%', risk: 'High' }
+        ];
+
+        const tableBody = document.getElementById('marketTable');
+        markets.forEach(m => {
+            const row = document.createElement('tr');
+            row.innerHTML = `
+                <td><span style="color: ${varietyData[m.variety.toLowerCase().replace(' ', '-')]?.color || '#3A7B4B'};">●</span> ${m.variety}</td>
+                <td>${m.market}</td>
+                <td>₹${m.current}</td>
+                <td style="color: var(--accent);">₹${m.predicted}</td>
+                <td>${m.window}</td>
+                <td>${m.strategy}</td>
+                <td style="color: ${m.gain.includes('+') ? 'var(--success)' : 'var(--danger)'};">${m.gain}</td>
+                <td><span style="color: ${m.risk === 'Low' ? 'var(--success)' : m.risk === 'Medium' ? 'var(--warning)' : 'var(--danger)'};">${m.risk}</span></td>
+            `;
+            tableBody.appendChild(row);
+        });
+
+        // ========== PREDICTION FUNCTION ==========
+        async function executePrediction(inputData) {
+            try {
+                const headers = {
+                    'Content-Type': 'application/json'
+                };
+                
+                const token = localStorage.getItem('token');
+                if (token) {
+                    headers['Authorization'] = `Bearer ${token}`;
+                }
+                
+                const response = await fetch('http://localhost:8000/predict', {
+                    method: 'POST',
+                    headers: headers,
+                    body: JSON.stringify({
+                        market: inputData.market[0],
+                        arrival_qty: inputData.arrival_qty[0],
+                        price_today: inputData.price_today[0],
+                        price_1d_ago: inputData.price_1d_ago[0],
+                        price_3d_ago: inputData.price_3d_ago[0],
+                        days_since_harvest: inputData.days_since_harvest[0],
+                        max_safe_days: inputData.max_safe_days[0]
+                    })
+                });
+                
+                if (!response.ok) throw new Error('Prediction failed');
+                
+                const result = await response.json();
+                
+                return {
+                    predicted_price: result.predicted_price,
+                    risk_ratio: result.risk_ratio,
+                    decision: result.decision.includes('WAIT') ? 'WAIT' : 'SELL',
+                    decision_reason: result.decision
+                };
+                
+            } catch (error) {
+                console.error('Prediction error:', error);
+                showNotification('Please login to save your predictions', 'warning');
+                return null;
+            }
+        }
+
+        // ========== PREDICTION BUTTON ==========
+        document.getElementById('predictBtn').addEventListener('click', async function() {
+            const variety = document.getElementById('varietySelect').value;
+            const data = varietyData[variety];
+            
+            const inputData = {
+                market: [document.getElementById('market').value],
+                arrival_qty: [parseFloat(document.getElementById('arrival_qty').value)],
+                price_today: [parseFloat(document.getElementById('price_today').value)],
+                price_1d_ago: [parseFloat(document.getElementById('price_1d_ago').value)],
+                price_3d_ago: [parseFloat(document.getElementById('price_3d_ago').value)],
+                days_since_harvest: [parseFloat(document.getElementById('days_since_harvest').value)],
+                max_safe_days: [parseFloat(document.getElementById('max_safe_days').value)]
+            };
+            
+            const result = await executePrediction(inputData);
+            
+            if (result) {
+                document.getElementById('resultsSection').classList.add('active');
+                document.getElementById('resultVariety').textContent = `${data.name} Apple`;
+                document.getElementById('predictedPriceResult').textContent = `₹${result.predicted_price.toFixed(2)}`;
+                document.getElementById('decisionBadge').textContent = result.decision;
+                document.getElementById('decisionBadge').className = `decision-badge decision-${result.decision.toLowerCase()}`;
+                document.getElementById('decisionReason').textContent = result.decision_reason;
+                document.getElementById('resultRisk').textContent = result.risk_ratio.toFixed(2);
+                
+                showNotification(`${data.name}: ${result.decision} · ₹${result.predicted_price.toFixed(2)}`, 
+                    result.decision === 'WAIT' ? 'success' : 'warning');
+            }
+        });
+
+        // ========== RESET BUTTON ==========
+        document.getElementById('resetBtn').addEventListener('click', function() {
+            document.getElementById('varietySelect').value = 'gala';
+            document.getElementById('market').value = 'Srinagar';
+            document.getElementById('arrival_qty').value = '8000';
+            document.getElementById('price_today').value = '120';
+            document.getElementById('price_1d_ago').value = '118';
+            document.getElementById('price_3d_ago').value = '115';
+            document.getElementById('days_since_harvest').value = '10';
+            document.getElementById('max_safe_days').value = '180';
+            document.getElementById('resultsSection').classList.remove('active');
+            showNotification('Reset to Gala · Srinagar test case', 'info');
+        });
+
+        // ========== APPLY STRATEGY ==========
+        document.getElementById('applyStrategy').addEventListener('click', function() {
+            const variety = document.getElementById('varietySelect').value;
+            const data = varietyData[variety];
+            showNotification(`Strategy applied for ${data.name} · Check email for details`, 'success');
+        });
+
+        // ========== WELCOME NOTIFICATIONS ==========
+        setTimeout(() => {
+            showNotification('12 Apple Varieties loaded · Ready for predictions', 'success');
+            showNotification('Honeycrisp: +5.0% potential · Premium variety', 'warning');
+        }, 1000);
+
+        console.log('✅ EcoRipe · Complete System Ready with Authentication');
+    </script>
+</body>
+</html>
