@@ -1,11 +1,11 @@
 # ============================================
-# ECORIPE - COMPLETE FIXED AUTH BACKEND
-# WITH PERSISTENT STORAGE & ACCURATE PREDICTIONS
+# ECORIPE - AUTHENTICATION & API SERVER
+# VERSION: 3.0 PRODUCTION READY
 # ============================================
 
 from fastapi import FastAPI, HTTPException, Request
 from fastapi.middleware.cors import CORSMiddleware
-from pydantic import BaseModel, EmailStr
+from pydantic import BaseModel, EmailStr, Field
 from datetime import datetime, timedelta
 from typing import Optional, List
 import jwt
@@ -13,66 +13,73 @@ import sqlite3
 import hashlib
 import secrets
 import pandas as pd
-import asyncio
 import os
 import time
 from contextlib import contextmanager
+import logging
+
+# Import your ML engine
+from app import predict_crop_decision, r2, mae
 
 # ============================================
-# IMPORT YOUR ENHANCED MODEL
+# SETUP LOGGING
 # ============================================
-from app import predict_crop_decision_enhanced, r2, model, scaler
+logging.basicConfig(level=logging.INFO)
+logger = logging.getLogger("ecor ripe-api")
 
 # ============================================
-# SETUP
+# INITIALIZE FASTAPI
 # ============================================
-app = FastAPI(title="EcoRipe API with Auth")
+app = FastAPI(
+    title="EcoRipe API",
+    description="ML-Powered Apple Price Prediction",
+    version="3.0.0"
+)
 
-# Allow frontend connection
+# CORS configuration
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=["*"],  # Your frontend URL
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
-# JWT Configuration
+# ============================================
+# SECURITY CONFIGURATION
+# ============================================
 SECRET_KEY = secrets.token_urlsafe(32)
 ALGORITHM = "HS256"
 ACCESS_TOKEN_EXPIRE_MINUTES = 60 * 24 * 7  # 7 days
 
 # ============================================
-# PERSISTENT STORAGE ON RENDER DISK
+# DATABASE SETUP (PERSISTENT STORAGE)
 # ============================================
-# Use Render Disk if available, otherwise fallback to /tmp
+# Use Render disk if available
 if os.path.exists('/data'):
     DB_PATH = '/data/ecor ripe_users.db'
-    print(f"✅ Using persistent storage: {DB_PATH}")
+    logger.info(f"✅ Using persistent storage: {DB_PATH}")
 else:
-    DB_PATH = '/tmp/ecor ripe_users.db'
-    print(f"⚠️ Using temporary storage: {DB_PATH} (data will reset on restart)")
+    DB_PATH = 'ecor ripe_users.db'
+    logger.info(f"📁 Using local storage: {DB_PATH}")
 
-# ============================================
-# DATABASE CONNECTION WITH CONTEXT MANAGER
-# ============================================
 @contextmanager
 def get_db():
-    """Get database connection with automatic closing"""
+    """Database connection with automatic cleanup"""
     conn = None
     try:
         conn = sqlite3.connect(DB_PATH)
         conn.row_factory = sqlite3.Row
         yield conn
     except Exception as e:
-        print(f"❌ Database error: {e}")
+        logger.error(f"Database error: {e}")
         raise
     finally:
         if conn:
             conn.close()
 
-def init_db_sync():
-    """Initialize database tables"""
+def init_database():
+    """Initialize all database tables"""
     try:
         with get_db() as conn:
             c = conn.cursor()
@@ -86,6 +93,7 @@ def init_db_sync():
                     full_name TEXT,
                     phone TEXT,
                     location TEXT,
+                    variety_preference TEXT,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     last_login TIMESTAMP,
                     is_active BOOLEAN DEFAULT 1,
@@ -93,169 +101,171 @@ def init_db_sync():
                 )
             ''')
             
-            # Create index for faster email lookups
+            # Create indexes for faster queries
             c.execute('CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)')
             
-            # Visits tracking table
-            c.execute('''
-                CREATE TABLE IF NOT EXISTS visits (
-                    id INTEGER PRIMARY KEY AUTOINCREMENT,
-                    user_id INTEGER,
-                    session_id TEXT,
-                    ip_address TEXT,
-                    user_agent TEXT,
-                    page_visited TEXT,
-                    visited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-                    FOREIGN KEY (user_id) REFERENCES users(id)
-                )
-            ''')
-            
-            # Predictions tracking table
+            # Predictions table
             c.execute('''
                 CREATE TABLE IF NOT EXISTS predictions (
                     id INTEGER PRIMARY KEY AUTOINCREMENT,
                     user_id INTEGER,
                     market TEXT,
+                    variety TEXT,
                     arrival_qty REAL,
                     price_today REAL,
                     predicted_price REAL,
                     decision TEXT,
                     risk_ratio REAL,
+                    confidence REAL,
                     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
                     FOREIGN KEY (user_id) REFERENCES users(id)
                 )
             ''')
             
-            # Create index for predictions
-            c.execute('CREATE INDEX IF NOT EXISTS idx_predictions_user_id ON predictions(user_id)')
+            c.execute('CREATE INDEX IF NOT EXISTS idx_predictions_user ON predictions(user_id)')
+            
+            # Visits table for analytics
+            c.execute('''
+                CREATE TABLE IF NOT EXISTS visits (
+                    id INTEGER PRIMARY KEY AUTOINCREMENT,
+                    session_id TEXT,
+                    ip_address TEXT,
+                    user_agent TEXT,
+                    page TEXT,
+                    visited_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+                )
+            ''')
             
             conn.commit()
             
-            # Check if we have any users
-            c.execute("SELECT COUNT(*) as count FROM users")
-            count = c.fetchone()['count']
-            print(f"✅ Database initialized with {count} existing users")
+            # Check if admin user exists, create if not
+            c.execute("SELECT COUNT(*) as count FROM users WHERE email = 'admin@ecor ripe.com'")
+            if c.fetchone()['count'] == 0:
+                admin_hash = hashlib.sha256("Admin@2026".encode()).hexdigest()
+                c.execute("""
+                    INSERT INTO users (email, password_hash, full_name, is_active)
+                    VALUES (?, ?, ?, ?)
+                """, ('admin@ecor ripe.com', admin_hash, 'System Admin', 1))
+                conn.commit()
+                logger.info("✅ Admin user created")
             
-        return True
+            logger.info("✅ Database initialized successfully")
+            
     except Exception as e:
-        print(f"❌ Database initialization failed: {e}")
-        return False
+        logger.error(f"Database initialization failed: {e}")
+
+# Initialize database on startup
+init_database()
 
 # ============================================
-# STARTUP EVENT
-# ============================================
-@app.on_event("startup")
-async def startup_event():
-    """Initialize database AFTER server starts"""
-    print("🚀 EcoRipe Auth Server starting...")
-    print(f"📊 Model R² Score: {r2:.3f}")
-    
-    # Run database init in thread pool
-    loop = asyncio.get_event_loop()
-    success = await loop.run_in_executor(None, init_db_sync)
-    
-    if success:
-        print("✅ Server ready to handle requests!")
-    else:
-        print("⚠️ Server started but database has issues")
-
-# ============================================
-# HEALTH CHECK
-# ============================================
-@app.get("/healthz")
-@app.get("/health")
-async def health_check():
-    """Quick health check"""
-    start_time = time.time()
-    try:
-        with get_db() as conn:
-            c = conn.cursor()
-            c.execute("SELECT 1")
-            db_status = "connected"
-    except Exception as e:
-        db_status = f"error: {str(e)}"
-    
-    response_time = (time.time() - start_time) * 1000
-    
-    return {
-        "status": "healthy",
-        "database": db_status,
-        "response_time_ms": round(response_time, 2),
-        "model_accuracy": round(r2 * 100, 1),
-        "timestamp": datetime.utcnow().isoformat()
-    }
-
-# ============================================
-# MODELS
+# PYDANTIC MODELS
 # ============================================
 class UserRegister(BaseModel):
     email: EmailStr
-    password: str
+    password: str = Field(..., min_length=6)
     full_name: Optional[str] = None
     phone: Optional[str] = None
     location: Optional[str] = None
+    variety_preference: Optional[str] = None
     marketing_consent: bool = True
 
 class UserLogin(BaseModel):
     email: EmailStr
     password: str
 
-class Token(BaseModel):
+class TokenResponse(BaseModel):
     access_token: str
     token_type: str
     email: str
     full_name: Optional[str] = None
     user_id: int
+    expires_in: int
 
-class PredictionInput(BaseModel):
+class PredictionRequest(BaseModel):
     market: str
-    arrival_qty: float
-    price_today: float
-    price_1d_ago: float
-    price_3d_ago: float
-    days_since_harvest: int
-    max_safe_days: int
+    variety: str = "Gala"
+    arrival_qty: float = Field(..., gt=0)
+    price_today: float = Field(..., gt=0)
+    price_1d_ago: float = Field(..., gt=0)
+    price_3d_ago: float = Field(..., gt=0)
+    days_since_harvest: int = Field(..., ge=0)
+    max_safe_days: int = Field(..., gt=0)
 
-class PredictionOutput(BaseModel):
-    decision: str
-    predicted_price: float
-    risk_ratio: float
-    price_trend_1d: float
-    price_trend_3d: float
-    warnings: List[str] = []
-    confidence: float
+class PredictionResponse(BaseModel):
+    success: bool
+    decision: Optional[str] = None
+    predicted_price: Optional[float] = None
+    risk_ratio: Optional[float] = None
+    risk_level: Optional[str] = None
+    confidence: Optional[float] = None
+    message: Optional[str] = None
+
+class UserProfileResponse(BaseModel):
+    email: str
+    full_name: Optional[str]
+    location: Optional[str]
+    variety_preference: Optional[str]
+    member_since: str
+    total_predictions: int
+    recent_predictions: List[dict]
 
 # ============================================
 # HELPER FUNCTIONS
 # ============================================
 def hash_password(password: str) -> str:
-    """Hash password with salt"""
-    salt = secrets.token_hex(8)
-    return salt + ':' + hashlib.sha256((salt + password).encode()).hexdigest()
+    """Secure password hashing with salt"""
+    salt = secrets.token_hex(16)
+    return f"{salt}:{hashlib.sha256((salt + password).encode()).hexdigest()}"
 
 def verify_password(password: str, hash_str: str) -> bool:
     """Verify password against hash"""
     try:
-        salt, hash_value = hash_str.split(':', 1)
+        salt, hash_value = hash_str.split(':')
         return hash_value == hashlib.sha256((salt + password).encode()).hexdigest()
     except:
         return False
 
-def create_access_token(data: dict, expires_delta: Optional[timedelta] = None):
+def create_access_token(data: dict) -> str:
     """Create JWT token"""
     to_encode = data.copy()
-    if expires_delta:
-        expire = datetime.utcnow() + expires_delta
-    else:
-        expire = datetime.utcnow() + timedelta(minutes=15)
+    expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
     to_encode.update({"exp": expire})
     return jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
+
+def verify_token(token: str) -> Optional[dict]:
+    """Verify JWT token"""
+    try:
+        return jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    except:
+        return None
+
+# ============================================
+# HEALTH CHECK ENDPOINTS
+# ============================================
+@app.get("/health")
+@app.get("/healthz")
+async def health_check():
+    """Quick health check for Render"""
+    start = time.time()
+    try:
+        with get_db() as conn:
+            conn.execute("SELECT 1").fetchone()
+        db_status = "connected"
+    except:
+        db_status = "disconnected"
+    
+    return {
+        "status": "healthy",
+        "database": db_status,
+        "model_accuracy": f"{r2 * 100:.1f}%",
+        "response_time_ms": round((time.time() - start) * 1000, 2),
+        "timestamp": datetime.utcnow().isoformat()
+    }
 
 # ============================================
 # AUTHENTICATION ENDPOINTS
 # ============================================
-
-@app.post("/api/register", response_model=Token)
+@app.post("/api/register", response_model=TokenResponse)
 async def register(user: UserRegister):
     """Register new user"""
     try:
@@ -267,39 +277,39 @@ async def register(user: UserRegister):
             if c.fetchone():
                 raise HTTPException(status_code=400, detail="Email already registered")
             
-            # Create new user
+            # Create user
             password_hash = hash_password(user.password)
             c.execute("""
-                INSERT INTO users (email, password_hash, full_name, phone, location, marketing_consent)
-                VALUES (?, ?, ?, ?, ?, ?)
-            """, (user.email, password_hash, user.full_name, user.phone, user.location, user.marketing_consent))
+                INSERT INTO users (email, password_hash, full_name, phone, location, 
+                                 variety_preference, marketing_consent)
+                VALUES (?, ?, ?, ?, ?, ?, ?)
+            """, (user.email, password_hash, user.full_name, user.phone, 
+                  user.location, user.variety_preference, user.marketing_consent))
             
             user_id = c.lastrowid
             conn.commit()
             
             # Create token
-            access_token = create_access_token(
-                data={"sub": user.email, "user_id": user_id},
-                expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            token = create_access_token({"sub": user.email, "user_id": user_id})
+            
+            logger.info(f"✅ New user registered: {user.email}")
+            
+            return TokenResponse(
+                access_token=token,
+                token_type="bearer",
+                email=user.email,
+                full_name=user.full_name,
+                user_id=user_id,
+                expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60
             )
-            
-            print(f"✅ New user registered: {user.email}")
-            
-            return {
-                "access_token": access_token,
-                "token_type": "bearer",
-                "email": user.email,
-                "full_name": user.full_name,
-                "user_id": user_id
-            }
             
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Registration error: {e}")
+        logger.error(f"Registration error: {e}")
         raise HTTPException(status_code=500, detail="Registration failed")
 
-@app.post("/api/login", response_model=Token)
+@app.post("/api/login", response_model=TokenResponse)
 async def login(user: UserLogin):
     """Login user"""
     try:
@@ -307,127 +317,183 @@ async def login(user: UserLogin):
             c = conn.cursor()
             
             # Get user
-            c.execute("SELECT id, email, full_name, password_hash FROM users WHERE email = ?", (user.email,))
+            c.execute("SELECT id, email, full_name, password_hash FROM users WHERE email = ?", 
+                     (user.email,))
             db_user = c.fetchone()
             
             if not db_user or not verify_password(user.password, db_user['password_hash']):
-                # Add small delay to prevent timing attacks
-                await asyncio.sleep(0.5)
+                # Delay to prevent timing attacks
+                time.sleep(0.5)
                 raise HTTPException(status_code=401, detail="Invalid email or password")
             
             # Update last login
-            c.execute("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?", (db_user['id'],))
+            c.execute("UPDATE users SET last_login = CURRENT_TIMESTAMP WHERE id = ?", 
+                     (db_user['id'],))
             conn.commit()
             
             # Create token
-            access_token = create_access_token(
-                data={"sub": db_user['email'], "user_id": db_user['id']},
-                expires_delta=timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
+            token = create_access_token({"sub": db_user['email'], "user_id": db_user['id']})
+            
+            logger.info(f"✅ User logged in: {user.email}")
+            
+            return TokenResponse(
+                access_token=token,
+                token_type="bearer",
+                email=db_user['email'],
+                full_name=db_user['full_name'],
+                user_id=db_user['id'],
+                expires_in=ACCESS_TOKEN_EXPIRE_MINUTES * 60
             )
-            
-            print(f"✅ User logged in: {user.email}")
-            
-            return {
-                "access_token": access_token,
-                "token_type": "bearer",
-                "email": db_user['email'],
-                "full_name": db_user['full_name'],
-                "user_id": db_user['id']
-            }
             
     except HTTPException:
         raise
     except Exception as e:
-        print(f"❌ Login error: {e}")
+        logger.error(f"Login error: {e}")
         raise HTTPException(status_code=500, detail="Login failed")
 
-@app.get("/api/verify-token")
-async def verify_token(request: Request):
+@app.get("/api/verify")
+async def verify_token_endpoint(request: Request):
     """Verify JWT token"""
     auth_header = request.headers.get("Authorization")
     if not auth_header or not auth_header.startswith("Bearer "):
-        return {"valid": False, "error": "No token provided"}
+        return {"valid": False}
     
     token = auth_header.replace("Bearer ", "")
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+    payload = verify_token(token)
+    
+    if payload:
         return {
             "valid": True,
             "email": payload.get("sub"),
             "user_id": payload.get("user_id")
         }
-    except jwt.ExpiredSignatureError:
-        return {"valid": False, "error": "Token expired"}
-    except jwt.InvalidTokenError:
-        return {"valid": False, "error": "Invalid token"}
+    return {"valid": False}
 
 # ============================================
-# PREDICTION ENDPOINT (UPDATED WITH ENHANCED MODEL)
+# PREDICTION ENDPOINT
 # ============================================
-@app.post("/predict", response_model=PredictionOutput)
-async def predict(data: PredictionInput, request: Request):
-    """Make price prediction using enhanced model"""
+@app.post("/api/predict", response_model=PredictionResponse)
+async def predict_price(request: Request, prediction: PredictionRequest):
+    """Make price prediction"""
     try:
         # Get user if logged in
         user_id = None
         auth_header = request.headers.get("Authorization")
         if auth_header and auth_header.startswith("Bearer "):
-            try:
-                token = auth_header.replace("Bearer ", "")
-                payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
+            token = auth_header.replace("Bearer ", "")
+            payload = verify_token(token)
+            if payload:
                 user_id = payload.get("user_id")
-            except:
-                pass
         
         # Create DataFrame for prediction
         input_df = pd.DataFrame([{
-            "market": data.market,
-            "arrival_qty": data.arrival_qty,
-            "price_today": data.price_today,
-            "price_1d_ago": data.price_1d_ago,
-            "price_3d_ago": data.price_3d_ago,
-            "days_since_harvest": data.days_since_harvest,
-            "max_safe_days": data.max_safe_days
+            "market": prediction.market,
+            "arrival_qty": prediction.arrival_qty,
+            "price_today": prediction.price_today,
+            "price_1d_ago": prediction.price_1d_ago,
+            "price_3d_ago": prediction.price_3d_ago,
+            "days_since_harvest": prediction.days_since_harvest,
+            "max_safe_days": prediction.max_safe_days
         }])
         
-        # Call enhanced prediction function
-        result = predict_crop_decision_enhanced(input_df)
+        # Get prediction from ML engine
+        result = predict_crop_decision(input_df)
         
-        # Save to database if logged in
+        if not result["success"]:
+            return PredictionResponse(success=False, message=result["message"])
+        
+        # Save to database if user logged in
         if user_id:
             try:
                 with get_db() as conn:
                     c = conn.cursor()
                     c.execute("""
                         INSERT INTO predictions 
-                        (user_id, market, arrival_qty, price_today, predicted_price, decision, risk_ratio)
-                        VALUES (?, ?, ?, ?, ?, ?, ?)
-                    """, (user_id, data.market, data.arrival_qty, data.price_today,
-                          result['predicted_price'], result['decision'], result['risk_ratio']))
+                        (user_id, market, variety, arrival_qty, price_today, 
+                         predicted_price, decision, risk_ratio, confidence)
+                        VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)
+                    """, (user_id, prediction.market, prediction.variety,
+                          prediction.arrival_qty, prediction.price_today,
+                          result["predicted_price"], result["decision"],
+                          result["risk_ratio"], result["confidence"]))
                     conn.commit()
             except Exception as e:
-                print(f"⚠️ Failed to save prediction: {e}")
+                logger.error(f"Failed to save prediction: {e}")
         
-        return PredictionOutput(
-            decision=result['decision'],
-            predicted_price=result['predicted_price'],
-            risk_ratio=result['risk_ratio'],
-            price_trend_1d=result['price_trend_1d'],
-            price_trend_3d=result['price_trend_3d'],
-            warnings=result.get('warnings', []),
-            confidence=result['confidence']
+        return PredictionResponse(
+            success=True,
+            decision=result["decision"],
+            predicted_price=result["predicted_price"],
+            risk_ratio=result["risk_ratio"],
+            risk_level=result["risk_level"],
+            confidence=result["confidence"],
+            message=result["message"]
         )
         
     except Exception as e:
-        print(f"❌ Prediction error: {e}")
-        raise HTTPException(status_code=500, detail=str(e))
+        logger.error(f"Prediction error: {e}")
+        return PredictionResponse(success=False, message=str(e))
 
 # ============================================
-# TRACKING ENDPOINTS
+# USER PROFILE ENDPOINT
+# ============================================
+@app.get("/api/user/profile", response_model=UserProfileResponse)
+async def get_profile(request: Request):
+    """Get user profile and prediction history"""
+    auth_header = request.headers.get("Authorization")
+    if not auth_header or not auth_header.startswith("Bearer "):
+        raise HTTPException(status_code=401, detail="Not authenticated")
+    
+    token = auth_header.replace("Bearer ", "")
+    payload = verify_token(token)
+    if not payload:
+        raise HTTPException(status_code=401, detail="Invalid token")
+    
+    user_id = payload.get("user_id")
+    
+    with get_db() as conn:
+        c = conn.cursor()
+        
+        # Get user details
+        c.execute("""
+            SELECT email, full_name, location, variety_preference, created_at
+            FROM users WHERE id = ?
+        """, (user_id,))
+        user = c.fetchone()
+        
+        if not user:
+            raise HTTPException(status_code=404, detail="User not found")
+        
+        # Get prediction history
+        c.execute("""
+            SELECT market, variety, predicted_price, decision, confidence, created_at
+            FROM predictions
+            WHERE user_id = ?
+            ORDER BY created_at DESC
+            LIMIT 10
+        """, (user_id,))
+        predictions = c.fetchall()
+        
+        # Get total count
+        c.execute("SELECT COUNT(*) as count FROM predictions WHERE user_id = ?", (user_id,))
+        total = c.fetchone()['count']
+    
+    return UserProfileResponse(
+        email=user['email'],
+        full_name=user['full_name'],
+        location=user['location'],
+        variety_preference=user['variety_preference'],
+        member_since=user['created_at'],
+        total_predictions=total,
+        recent_predictions=[dict(p) for p in predictions]
+    )
+
+# ============================================
+# ANALYTICS ENDPOINT
 # ============================================
 @app.post("/api/track-visit")
 async def track_visit(request: Request):
-    """Track page visit"""
+    """Track page visits"""
     try:
         session_id = request.headers.get("X-Session-ID", "unknown")
         ip = request.client.host
@@ -437,89 +503,22 @@ async def track_visit(request: Request):
         with get_db() as conn:
             c = conn.cursor()
             c.execute("""
-                INSERT INTO visits (session_id, ip_address, user_agent, page_visited)
+                INSERT INTO visits (session_id, ip_address, user_agent, page)
                 VALUES (?, ?, ?, ?)
             """, (session_id, ip, user_agent, page))
             conn.commit()
         
         return {"status": "tracked"}
     except Exception as e:
-        return {"status": "error", "message": str(e)}
-
-# ============================================
-# USER PROFILE ENDPOINT
-# ============================================
-@app.get("/api/user/profile")
-async def get_profile(request: Request):
-    """Get user profile"""
-    auth_header = request.headers.get("Authorization")
-    if not auth_header or not auth_header.startswith("Bearer "):
-        raise HTTPException(status_code=401, detail="Not authenticated")
-    
-    token = auth_header.replace("Bearer ", "")
-    try:
-        payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
-        user_id = payload.get("user_id")
-        
-        with get_db() as conn:
-            c = conn.cursor()
-            c.execute("""
-                SELECT email, full_name, location, created_at, last_login, marketing_consent
-                FROM users WHERE id = ?
-            """, (user_id,))
-            user = c.fetchone()
-            
-            if not user:
-                raise HTTPException(status_code=404, detail="User not found")
-            
-            # Get user's prediction history
-            c.execute("""
-                SELECT market, predicted_price, decision, created_at
-                FROM predictions
-                WHERE user_id = ?
-                ORDER BY created_at DESC
-                LIMIT 10
-            """, (user_id,))
-            predictions = c.fetchall()
-            
-            return {
-                "email": user['email'],
-                "full_name": user['full_name'],
-                "location": user['location'],
-                "joined": user['created_at'],
-                "last_login": user['last_login'],
-                "marketing_consent": bool(user['marketing_consent']),
-                "recent_predictions": [dict(p) for p in predictions]
-            }
-            
-    except jwt.InvalidTokenError:
-        raise HTTPException(status_code=401, detail="Invalid token")
+        logger.error(f"Visit tracking error: {e}")
+        return {"status": "error"}
 
 # ============================================
 # ADMIN ENDPOINTS
 # ============================================
-@app.get("/api/admin/users")
-async def get_users(admin_key: str):
-    """Get all users (admin only)"""
-    if admin_key != "ecor ripe-admin-2026":
-        raise HTTPException(status_code=401, detail="Unauthorized")
-    
-    with get_db() as conn:
-        c = conn.cursor()
-        c.execute("""
-            SELECT id, email, full_name, location, created_at, last_login, marketing_consent
-            FROM users ORDER BY created_at DESC
-        """)
-        users = c.fetchall()
-        
-        return {
-            "total": len(users),
-            "users": [dict(u) for u in users]
-        }
-
 @app.get("/api/admin/stats")
-async def get_stats(admin_key: str):
-    """Get system statistics"""
+async def admin_stats(admin_key: str):
+    """Get system statistics (admin only)"""
     if admin_key != "ecor ripe-admin-2026":
         raise HTTPException(status_code=401, detail="Unauthorized")
     
@@ -533,48 +532,44 @@ async def get_stats(admin_key: str):
         c.execute("SELECT COUNT(*) as count FROM users WHERE date(created_at) = date('now')")
         today_users = c.fetchone()['count']
         
-        # Visit stats
-        c.execute("SELECT COUNT(*) as count FROM visits")
-        total_visits = c.fetchone()['count']
-        
-        c.execute("SELECT COUNT(*) as count FROM visits WHERE date(visited_at) = date('now')")
-        today_visits = c.fetchone()['count']
-        
         # Prediction stats
         c.execute("SELECT COUNT(*) as count FROM predictions")
         total_predictions = c.fetchone()['count']
         
-        c.execute("SELECT AVG(predicted_price) as avg FROM predictions")
-        avg_price = c.fetchone()['avg']
+        c.execute("SELECT COUNT(*) as count FROM predictions WHERE date(created_at) = date('now')")
+        today_predictions = c.fetchone()['count']
+        
+        # Visit stats
+        c.execute("SELECT COUNT(*) as count FROM visits")
+        total_visits = c.fetchone()['count']
         
         # Email list
         c.execute("SELECT email FROM users WHERE marketing_consent = 1")
         emails = [row['email'] for row in c.fetchall()]
-        
-        return {
-            "users": {
-                "total": total_users,
-                "today": today_users,
-                "email_list": emails,
-                "email_count": len(emails)
-            },
-            "visits": {
-                "total": total_visits,
-                "today": today_visits
-            },
-            "predictions": {
-                "total": total_predictions,
-                "average_price": round(avg_price, 2) if avg_price else None
-            },
-            "model": {
-                "accuracy": round(r2 * 100, 1),
-                "name": "Linear Regression"
-            }
+    
+    return {
+        "users": {
+            "total": total_users,
+            "today": today_users,
+            "email_list": emails,
+            "email_count": len(emails)
+        },
+        "predictions": {
+            "total": total_predictions,
+            "today": today_predictions
+        },
+        "visits": {
+            "total": total_visits
+        },
+        "model": {
+            "accuracy": f"{r2 * 100:.1f}%",
+            "avg_error": f"₹{mae:.2f}"
         }
+    }
 
 @app.get("/api/admin/export-emails")
 async def export_emails(admin_key: str):
-    """Export emails as CSV"""
+    """Export emails as CSV (admin only)"""
     if admin_key != "ecor ripe-admin-2026":
         raise HTTPException(status_code=401, detail="Unauthorized")
     
@@ -589,55 +584,14 @@ async def export_emails(admin_key: str):
         users = c.fetchall()
     
     # Generate CSV
-    import csv
-    from io import StringIO
-    
-    output = StringIO()
-    writer = csv.writer(output)
-    writer.writerow(['Email', 'Full Name', 'Location', 'Registered Date'])
-    
+    csv_lines = ["Email,Full Name,Location,Registered Date"]
     for user in users:
-        writer.writerow([
-            user['email'],
-            user['full_name'] or '',
-            user['location'] or '',
-            user['created_at']
-        ])
+        csv_lines.append(f"{user['email']},{user['full_name'] or ''},{user['location'] or ''},{user['created_at']}")
     
     return {
-        "csv": output.getvalue(),
+        "csv": "\n".join(csv_lines),
         "count": len(users),
         "filename": f"ecor ripe-emails-{datetime.now().strftime('%Y%m%d')}.csv"
-    }
-
-# ============================================
-# DEBUG ENDPOINTS
-# ============================================
-@app.get("/debug/users")
-async def debug_users():
-    """Debug endpoint to see users (REMOVE IN PRODUCTION)"""
-    try:
-        with get_db() as conn:
-            c = conn.cursor()
-            c.execute("SELECT email, created_at FROM users ORDER BY created_at DESC")
-            users = c.fetchall()
-            return {
-                "count": len(users),
-                "users": [dict(u) for u in users],
-                "db_path": DB_PATH
-            }
-    except Exception as e:
-        return {"error": str(e), "db_path": DB_PATH}
-
-@app.get("/debug/db-info")
-async def db_info():
-    """Database information"""
-    return {
-        "db_path": DB_PATH,
-        "db_exists": os.path.exists(DB_PATH),
-        "db_size": os.path.getsize(DB_PATH) if os.path.exists(DB_PATH) else 0,
-        "writable": os.access(DB_PATH, os.W_OK) if os.path.exists(DB_PATH) else False,
-        "model_accuracy": round(r2 * 100, 1)
     }
 
 # ============================================
@@ -645,19 +599,55 @@ async def db_info():
 # ============================================
 @app.get("/")
 async def root():
+    """API root with documentation links"""
     return {
         "name": "EcoRipe API",
-        "version": "2.0.0",
+        "version": "3.0.0",
         "status": "running",
-        "model_accuracy": f"{round(r2 * 100, 1)}%",
+        "model_accuracy": f"{r2 * 100:.1f}%",
         "endpoints": {
-            "health": "/healthz",
+            "health": "/health",
             "register": "/api/register",
             "login": "/api/login",
-            "verify": "/api/verify-token",
-            "predict": "/predict",
+            "verify": "/api/verify",
+            "predict": "/api/predict",
             "profile": "/api/user/profile",
-            "docs": "/docs"
+            "docs": "/docs",
+            "openapi": "/openapi.json"
         },
-        "documentation": "/docs"
+        "documentation": "/docs",
+        "made_by": "ather-ops"
     }
+
+# ============================================
+# DEBUG ENDPOINTS (remove in production)
+# ============================================
+@app.get("/debug/users")
+async def debug_users(admin_key: str):
+    """Debug: List all users"""
+    if admin_key != "ecor ripe-debug-2026":
+        raise HTTPException(status_code=401, detail="Unauthorized")
+    
+    with get_db() as conn:
+        c = conn.cursor()
+        c.execute("SELECT id, email, created_at FROM users ORDER BY created_at DESC")
+        users = c.fetchall()
+    
+    return {
+        "total": len(users),
+        "users": [dict(u) for u in users]
+    }
+
+# ============================================
+# STARTUP MESSAGE
+# ============================================
+print("\n" + "="*60)
+print("🚀 ECORIPE API SERVER - PRODUCTION READY")
+print("="*60)
+print(f"\n📊 Model Performance:")
+print(f"   • Accuracy: {r2 * 100:.1f}%")
+print(f"   • Avg Error: ₹{mae:.2f}")
+print(f"\n🔐 Authentication: JWT with 7-day tokens")
+print(f"💾 Database: {DB_PATH}")
+print(f"\n📡 Endpoints ready at /docs")
+print("="*60)
